@@ -1,0 +1,35 @@
+<model_run>
+<codetype>serial</codetype>
+<nodes>1</nodes>
+<!-- <time> unit: milliseconds -->
+<!-- <time> timer resolution: unspecified)-->
+<!-- <time> timer overhead: ~0.00e+00 ms)-->
+<iteration><no>20001</no><time>2054</time></iteration>
+<iteration><no>20002</no><time>1803</time></iteration>
+<iteration><no>20003</no><time>1847</time></iteration>
+<iteration><no>20004</no><time>1859</time></iteration>
+<iteration><no>20005</no><time>1627</time></iteration>
+<iteration><no>20006</no><time>1713</time></iteration>
+<iteration><no>20007</no><time>1705</time></iteration>
+<iteration><no>20008</no><time>1528</time></iteration>
+<iteration><no>20009</no><time>1800</time></iteration>
+<iteration><no>20010</no><time>2055</time></iteration>
+<iteration><no>20011</no><time>1829</time></iteration>
+<iteration><no>20012</no><time>1807</time></iteration>
+<iteration><no>20013</no><time>1660</time></iteration>
+<iteration><no>20014</no><time>1969</time></iteration>
+<iteration><no>20015</no><time>1965</time></iteration>
+<iteration><no>20016</no><time>1761</time></iteration>
+<iteration><no>20017</no><time>1896</time></iteration>
+<iteration><no>20018</no><time>1748</time></iteration>
+<iteration><no>20019</no><time>1743</time></iteration>
+<iteration><no>20020</no><time>2637</time></iteration>
+<iteration><no>20021</no><time>2195</time></iteration>
+<iteration><no>20022</no><time>1771</time></iteration>
+<iteration><no>20023</no><time>1679</time></iteration>
+<iteration><no>20024</no><time>1777</time></iteration>
+<iteration><no>20025</no><time>1924</time></iteration>
+<iteration><no>20026</no><time>1786</time></iteration>
+<iteration><no>20027</no><time>1750</time></iteration>
+<iteration><no>20028</no><time>1832</time></iteration>
+<iteration><no>20029</no><time>1763</time></iteration>

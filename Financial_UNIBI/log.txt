@@ -1,0 +1,548 @@
+AFM Dummy
+Logfile:
+29.07.2010
+===================
+AFM Dummy
+Logfile: AFM Dummy
+29.07.2010
+===================
+
+Financial Management: Firm and IGFirm
+====================
+Removed functions:
+Firm_compute_and_send_stock_orders
+Firm_compute_and_send_stock_orders_bankruptcy
+Firm_read_stock_transactions
+
+IGFirm_compute_and_send_stock_orders
+IGFirm_compute_and_send_stock_orders_bankruptcy
+IGFirm_read_stock_transactions
+
+Changes in functions:
+1. Firm_bankruptcy_insolvency_procedure, IGFirm_bankruptcy_insolvency_procedure:
+Condition on trading_activity completely removed.
+
+2. Firm_bankruptcy_illiquidity_procedure, IGFirm_bankruptcy_illiquidity_procedure:
+Condition on trading_activity completely removed.
+
+
+
+XML Stategraph changes:
+===============
+Normal branch
+Remove
+Firm_compute_and_send_stock_orders: Firm_End_Credit_Role->0003
+Firm_read_stock_transactions: 0003->End_Firm_Financial_Role
+
+New link:
+Firm_compute_total_liquidity_needs: Firm_Start_Credit_Role
+Firm_check_financial_and_bankruptcy_state: Firm_End_Credit_Role to Firm_bankruptcy_checked
+
+9.8.2010 CHECK THIS AGAINST ORIGINAL MODEL 
+-- Correct, old model also does not have this, it was copied from the function Firm_compute_and_send_stock_orders
+
+Removed condition on Firm_compute_total_liquidity_needs: 02 -> Firm_start_credit_role
+
+<condition>
+ <lhs>
+  <value>a.external_financial_needs</value>
+ </lhs>
+ <op>GT</op>
+ <rhs>
+  <value>0.0</value>
+ </rhs>
+</condition>
+
+Bankruptcy branch
+After Firm_bankruptcy_illiquidity_procedure: to Firm_bankruptcy_state_1
+Firm_remains_in_bankruptcy: active if a.external_financial_needs > 0.0, send error message
+
+Remove
+Firm_compute_and_send_stock_orders_bankruptcy
+Firm_read_stock_transactions to: Firm_bankruptcy_state_4
+
+Note:
+If in bankruptcy procedure external_financial_needs>0, then no exit from bankruptcy.
+
+Dummy: 
+Firm_receive_stock_info_dummy, State 15->16
+These are used between Financial_Man and Stat_Office to process the financial orders of bankrupt firms and update the bank account, can be removed, but would change input/output states of other functions.
+
+
+2. Firm_check_financial_and_bankruptcy_state: 
+Firm_End_Credit_Role -> Firm_bankruptcy_checked
+
+3. IGFirm_check_financial_and_bankruptcy_state: 
+IGFirm_End_Credit_Role -> IGFirm_bankruptcy_checked
+
+Should have condition:
+     <condition>
+      <lhs>
+       <value>a.external_financial_needs</value>
+      </lhs>
+      <op>GT</op>
+      <rhs>
+       <value>0.0</value>
+      </rhs>
+     </condition>
+Note: There is an idle function that has not(a.external_financial_needs GT 0.0)
+
+
+DEBUG - Editted functions outside this module:
+========================
+Firm_Producer_Functions.c: added some debugging output
+Firm_Financial Management_Functions.c: bugfix total_debt
+IGFirm_Financial Management_Functions.c: bugfix total_debt
+Bank_Credit_Functions.c
+Firm_Credit_Functions.c
+IGFirm_Credit_Functions.c
+Eurostat_Functions.c - rename of: PRINT_LOG -> PRINT_DEBUG_EUROSTAT
+Eurostat_aux_Functions.c
+
+
+Bug in Financial management:
+TOTAL_DEBT was a bit too high: it included the installment payment before it was subtracted from the loan value.
+Now: Total debt is only the remaining loan values.
+
+Credit
+======
+Firms ask to the same bank the same loan twice!
+But the 2nd loan request is for 0.
+
+
+Stat_Office
+========
+IGFirm_receive_data: IGFirm_Start_Macro_Data -> Start_IGFirm_Productivity
+
+New function:
+IGFirm_receive_data: IGFirm_Start_Macro_Data ->IGFirm_End_Macro_Data, Condition: 1st of month
+idle:  IGFirm_Start_Macro_Data ->IGFirm_End_Macro_Data, Condition: not 1st of month
+
+Dummy AFM:
+IGFirm_send_info: IGFirm_End_Macro_Data -> Start_IGFirm_Productivity, Condition: 1st of month
+idle:  IGFirm_End_Macro_Data -> Start_IGFirm_Productivity, Condition: not 1st of month
+
+
+Credit - Elimination of bond market
+========
+1. Function: Central_Bank_read_account_update()
+Removed input : payment_coupons message
+
+End of month: stock-flow accounting
+Removed ECB_BOND_HOLDINGS
+
+
+Government - Elimination of bond market
+========
+In 0.xml:
+GOV_POLICY_MONEY_FINANCING_FRACTION =1
+
+Implication.
+total_money_financing=fabs(PAYMENT_ACCOUNT)
+total_bond_financing=0
+
+1. Function: Government_monthly_budget_accounting()
+All deficits are financed with fiat money.
+add_request_fiat_money_message(TOTAL_MONEY_FINANCING);
+
+2. Function: Government_bonds_issuing_decision()
+has stategraph condition: (total_bond_financing>0), so will not be executed.
+
+Replaced by function: Government_bonds_issuing_decision_dummy()
+
+3. Function: Government_pays_coupons
+Gov_Start_Bond_Market -> GOVERNMENT_paid_coupons
+
+Replaced by function: Government_bond_market_dummy
+
+
+Financial_UNIBI
+=============
+MemVars
+
+Household:
+double risk free rate
+double wealth
+
+Clearinghouse:
+order_array pending_orders list of pending orders from traders
+order_array processed_orders list of processed orders
+
+ADT: 
+index_adt index
+price
+weights
+
+Most memvars of Central_Bank from Financial_UG are NOT in Financial_UNIBI
+Note: all messages between Government and Central_Bank related to deficit financing are in Government_GREQAM.
+
+
+New functions
+==========
+Household
+Use ECB base rate as interest rate on deposits
+
+Bug report
+=======
+Non-graceful treatment of missing messages.
+When a message is defined as output from some function, but there is no input function, xparser segfaults.
+
+Consider Unibi-SVN : UNIBI_Dummy_AFM rev
+
+Output messsage function:
+Credit_Ancona/model.xml
+Bank_send_accountInterest
+output: accountInterest
+
+Remove the input message from function: 
+Household_receive_info_interest_from_bank
+input: accountInterest
+
+Now xparser gives the error: message accountInterest not input to any function, removing message from model.
+But then it tries to create the stategraph and c code, it segfaults, since the function that has this message as output  is still there.
+
+
+Issues of integration
+=====
+Issue 1. Break link of Firm and IGFirm sending dividends.
+====================
+
+CURRENT_SHARES_OUTSTANDING should be positive in pop file (100 by default).
+
+Function: Firm_Financial_Management_Functions.c, Firm_execute_financial_payments(), 
+line 704
+IGFirm_Financial_Management_Functions.c,, 
+line 295: IGFIRM_SWITCH_ON == 0 in IGFirm_compute_dividends()
+line 932: IGFIRM_SWITCH_ON == 1 in IGFirm_execute_financial_payments()
+
+Total dividend payment is computed, but dividend per share message is not send:
+//add_dividend_per_share_message(ID, CURRENT_DIVIDEND_PER_SHARE);
+
+New msg dividend info is send:
+add_dividend_info_message(ID, TOTAL_DIVIDEND_PAYMENT);
+
+
+Question:
+In IGFirm memory: 
+If IGFirm_switch==0: CURRENT_SHARES_OUTSTANDING is called OUTSTANDING_SHARES?
+For example:
+
+CURRENT_DIVIDEND_PER_SHARE = average_last_net_profits/ OUTSTANDING_SHARES
+
+Proposed change: In XML rename OUTSTANDING_SHARES to CURRENT_SHARES_OUTSTANDING for consistency.
+There is no updating of CURRENT_SHARES_OUTSTANDING in C code, so this only affects the financial management.
+(Tested)
+
+Issue 2. Break link of Households reading firm dividends.
+====================
+Cons Goods
+========
+Household_receive_dividends: should be removed/replaced by a dummy function.
+(Function is part of XML-Labour, but c code is in Cons_Goods/Household_Consumer_Functions.c)
+
+Function reads dividend payments from firms.
+It updates:
+reset of RECEIVED_DIVIDEND_IN_CALENDAR_MONTH=0;
+cum_total_dividends
+received_dividend
+received_dividend_in_calendar_month
+reset of MONTHLY_CONSUMPTION_EXPENDITURE = 0.0; (was also in Household_receive_dividends)
+
+This is now moved to function: Household_receive_index_info.
+Function is replaced in XML by: Household_receive_dividends_dummy.
+
+
+Issue 3. What is the Asset budget that gets treated on the AFM?
+========
+Household memvar that holds the asset budget (the part that does not get consumed and can be used to allocate to asset portfolio on financial market): 
+
+asset budget = payment account - consumption budget + asset wealth?
+
+This is total current wealth - consumption budget:
+
+ASSET_BUDGET = PAYMENT_ACCOUNT + ASSETSOWNED.lastprice*ASSETSOWNED.units - CONSUMPTION_BUDGET;
+
+
+Issue 4. Where is the wealth updated after Household_update_portfolio?
+========================
+Currently in the code, 
+
+WEALTH = PAYMENT_ACCOUNT + ASSETSOWNED.lastprice*ASSETSOWNED.units;
+
+Issue 5. Break link of Government and bond market
+====================
+Removals:
+Government_send_account_update: removed line
+Government_compute_balance_sheet: commented lines
+Government_resolve_unsold_bonds: Replace by dummy function
+
+Government_monthly_budget_accounting: 
+//total debt = BOND.nr_outstanding*BOND.face_value;
+TOTAL_DEBT = CUMULATED_DEFICIT
+The debt is monetary: all fiat money received from ECB to cover the deficits.
+
+Issue 6. Break link of Household reading bankrupt firm message
+====================
+In Stat_Office
+Function: Household_receive_data
+Dummy: Household_receive_data_dummy
+
+Used to read bankruptcy message from firm to cancel/remove shares from portfolio.
+Removed and replace by dummy.
+
+List of dummy functions
+=================
+Stat_Office/Household_Functions.c
+Household_receive_data_dummy - Empty. Original function used to wipe out shares of bankrupt firms.
+
+XML: Labour/Household_Functions.c
+C: Cons_Goods/Household_Functions.c
+Household_receive_dividends_dummy - Empty. Original function was used to receive dividends from firms directly.
+
+Government/Government_Functions.c
+Government_resolve_unsold_bonds_dummy - Empty. Original function to resolve the bonds that are left unsold at the end of each month, remove then from the Govs internal book-keeping
+
+Government_bonds_issuing_decision_dummy - Empty. Original function to add a new quantity of bonds to issue.
+BOND.quantity = BOND.quantity + new_bonds_amount;
+
+
+Financial_UNIBI/Government_Financial_Market_Functions.c
+Government_bond_market_dummy - Empty. Original function added all bond financing money directly to Govs payment account.
+
+List of Removed functions:
+=================
+Firm_compute_and_send_stock_orders
+Firm_compute_and_send_stock_orders_bankruptcy
+Firm_read_stock_transactions
+
+IGFirm_compute_and_send_stock_orders
+IGFirm_compute_and_send_stock_orders_bankruptcy
+IGFirm_read_stock_transactions
+
+
+Pseudo code:
+=========
+Every function: list actions
+
+Unittests:
+========
+Household -- done
+Clearinghouse -- done
+Firm --todo
+IGFirm --todo
+
+Functional tests
+==========
+Households: send random orders
+Clearinghouse: send random dividend
+Clearinghouse: does not send order_status: Household think no trade.
+
+Pop file
+======
+Some changes:
+
+Household
+wealth = getSelfVar("payment_account") + sum(a["units"]*a["lastprice"] for a in getSelfVar("assetsowned"))
+
+Firm
+current_shares_outstanding=100
+previous_shares_outstanding=100
+current_share_price=1
+
+IGFirm
+outstanding_shares=100 (should be: current_shares_outstanding)
+previous_shares_outstanding=100
+current_share_price=1
+
+Government:
+total_debt =0
+bond: depends on total_debt
+
+Current bugs
+========
+29.7.2010 BUG 1 -- SOLVED
+ERROR: A function condition test has failed for agent type 'ClearingHouse' leaving state 'AFM_01'
+	 reason: there was no possible outgoing transition function
+Fixed stategraph.
+
+29.7.2010 BUG 2 -- SOLVED
+0 production, Nans in output
+HH consumption budget was faulty, fixed in 0.xml
+
+29.7.2010 BUG 3 - SOLVED
+Unittest: ClearingHouse_receive_dividend_info does not add index_info_message.
+Tested in simulation: OK
+ClearingHouse_send_index_info: add index_info_message?
+Error in unittest: adding iterators.
+
+30.7.2010 BUG 4 - SOLVED
+Missing agents in xml output: problem in stategraph conditions: possible nans?
+Fixed 0.xml
+
+30.7.2010 BUG 5 - SOLVED
+ERROR: Could not create Iterator for 'payment_coupons'
+	 reason: 'payment_coupons' board is locked
+
+Credit_Ancona: Central_Bank_Credit_Functions: payment_coupons was an input.
+
+1.8.2010 BUG 6 - SOLVED
+Rounding errors after the rationing mechanism
+
+1.8.2010 BUG 7 - SOLVED
+Households with activation day>1 have no orders on their activation day
+1. Perhaps condition is faulty: 
+2. Condition= monthly, phase=1: OK, 1600 orders on its 1, 21, ...
+2. Condition= a.day_of_month_to_act: Only 71 orders on day 1, 21, ...
+3. Condition= a.day_of_month_to_act + TRADING_ACTIVITY==1: same as 2.
+
+Idle before AFM loop was faulty, and circumvented the AFM to be active on days other than 1.
+
+
+1.8.2010 BUG 8 - SOLVED
+1. Firms send dividend_info_msg? Yes.
+2. ClearingHouse reads dividend_info_msg? Yes.
+
+2.8.2010 BUG 8b - SOLVED
+1. ClearingHouse_send_index_info: add index_info_message? Yes.
+2. Household_receive_index_info: reads index_info_message? Yes.
+Error in unittest:
+Message iterator should be created *AFTER* function evaluation.
+
+2.8.2010 BUG 9 - OPEN
+Random orders: Clearinghouse price adjustment
+
+9.8.2010 BUG 10 - SOLVED
+
+Iteration 118:
+Error in Household_update_portfolio: after transactions nr_shares negative ASSETSOWNED.units=-4.
+I did not add them, and do not want to update the PAYMENT_ACCOUNT and WEALTH.
+
+Problem:
+Index price in Household: updated monthly (since read from index_info msg).
+Index price in ClearingHouse: updated daily.
+
+This results in invalid evaluation of the market value of the current asset portfolio, since the household uses its old monthly price. Therefore the computation of the households current total wealth is completely false if based on the month old price data. To ensure therefore that all households have the correct price, the clearinghouse should send the index price daily.
+Households only need to read this price message just before they use the price information to compute their orders, that is only once a month. Since different households have different activation days, there will be households reading the price information on every day, just different ones each day.
+
+For the orders we use the monetary value of the net trade which the household sends to the ClearingHouse, and the ClearingHouse then uses its current index price to compute the units.
+
+Solution:
+Split up message: 1 msg for dividend (monthly), 1 msg for index price and moving avg (daily).
+
+index_info_message(dividend_per_share)
+index_price_message(price, moving_avg_price)
+
+Stategraph:
+Household_receive_index_price
+Condition: day_of_month_to_act AND trading_activity=1
+Household_revises_expected_portfolio
+
+TODO:
+- change unittests for smaller index_info_message(dividend_per_share)
+- add unittests for new index_price_message(price, moving_avg_price)
+
+9.8.2010 BUG 11 - OPEN
+Problem: All households have consumption budget =0 in iteration 1.
+This just means they will invest a lot in the index.
+
+9.8.2010 BUG 12 - OPEN
+ERROR: A function condition test has failed for agent type 'Firm' leaving state 'Firm_End_Credit_Role'
+	 reason: there was no possible outgoing transition function
+
+Related to change in condition on Firm_compute_total_liquidity_needs?
+No: that was copied from Firm_compute_and_send_stock_orders and should not have any condition.
+
+Financial_Management: model.xml
+
+1. Firm_check_financial_and_bankruptcy_state: 
+Firm_End_Credit_Role -> Firm_bankruptcy_checked
+
+2. IGFirm_check_financial_and_bankruptcy_state: 
+IGFirm_End_Credit_Role -> IGFirm_bankruptcy_checked
+
+This function should check for bankruptcy in case the firm is credti rationed:
+so there are still external liquidity needs: a.external_financial_needs>0.0.
+There should be an idle function on the other side.
+
+     <condition>
+      <lhs>
+       <value>a.external_financial_needs</value>
+      </lhs>
+      <op>GT</op>
+      <rhs>
+       <value>0.0</value>
+      </rhs>
+     </condition>
+Note: There is an idle function that has not(a.external_financial_needs GT 0.0)
+
+
+Constants: 
+=======
+Trading activity in index shares:
+trading_activity=0: trading of shares is off. The asset trading branch is not executed. Household do receive dividends on the index shares they own.
+trading_activity=1: trading of shares is on. Households read the index price and submit orders on their monthly activation day only.
+
+Asset allocation decision:
+trading_random=1: Households allocate a random fraction (0,1) of their asset budget to the index. The remainder is deposited on the bank account.
+trading_random=0: households use a method to determine the fraction of their asset budget to allocate to the index.
+
+
+Commits
+Added constant trading_random to switch on/off random trading.
+Bugfix 7: Households now send orders on day_of_month_to_act.
+Bugfix 8: Removed functions Firm, IGFirm: Firm_send_info, IGFirm_send_info
+		(no longer used, Financial_Management functions send the dividend_info_msg)
+Bugfix 8:a dividend_info_msg are send and read
+Bugfix 8b: index_info_message are send and read
+
+Commit
+Bugfix 9: INDEX -> STOCK_INDEX, due to problem with sql databases.
+0_default_2_Aug.pop: fewer stock_index_nr_shares: (Firm+IGFirm)*Household
+
+Commit 9.8.2010
+Bugfix: IG/Firm_Financial_Management: TOTAL_DEBT computation
+General print_debugs improved.
+
+Commit 9.8.2010
+Bugfix 10: ClearingHouse sends index price daily, households read when they need to on their activation day.
+This fixes the problem that households did not correctly evaluate the market value of their asset portfolio.
+
+TODO
+=====
+1. unittests with random dividends -- Done
+2. unittests with random order flow -- Done
+3. unittests households: checked that units sold is not more than units owned. Correction is done if the value to sell  is so high that it is more than the value of all units in portfolio. -- Done
+4. Solve daily orders from households -- Done
+5. Random dividend process: OK
+
+Current state: random dividends and random orders OK
+
+No output
+=======
+Todo: firms have no output, no dividends. OK
+Link of firm production with household consumption ok?
+
+Do static analysis of C code and xml code
+(checks whether message input/output checks with C code message input/output)
+
+DEBUG FLAGS:
+==========
+print_debug: checks this
+• firm reads policy announcements
+• Firm_set_quantities_zero
+• Firm_calc_input_demands
+• Bank_give_loan
+• Firm_compute_income_statement after sales (only the firms that have activation day)
+• Firm_compute_total_financial_payments
+• Firm_compute_balance_sheet
+• Bank_account_update_deposits
+
+
+print_debug_credit: prints out that banks receive the tax rate, checks that all agents send the bank account update messages at end of iteration (size of account array in bank equals nr of mesgs).
+
+print_debug_consumption: checks that all households have received the policy mesg.
+
+print_debug_file_exp1: prints to files
+print_debug_afm: general AFM data: orders
+print_debug_afm_ch: short output of rationing
+print_debug_ch: dividends in and out of ClearingHouse
